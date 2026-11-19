@@ -1,0 +1,37 @@
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    chroot /var/lib/haproxy
+    stats socket /run/haproxy/admin.sock mode 660 level admin
+    stats timeout 30s
+    user haproxy
+    group haproxy
+    daemon
+    maxconn 2048
+    tune.ssl.default-dh-param 2048
+
+defaults
+    log     global
+    mode    http
+    option  httplog
+    option  dontlognull
+    option  forwardfor
+    timeout connect 5000
+    timeout client  50000
+    timeout server  50000
+
+frontend www-http
+    bind *:80
+    http-request set-header X-Forwarded-Proto http
+    http-request redirect scheme https code 301 unless { ssl_fc }
+    default_backend www-backend
+
+frontend www-https
+    bind *:443 ssl crt /etc/haproxy/certs/www.63don.tech.pem
+    http-request set-header X-Forwarded-Proto https
+    default_backend www-backend
+
+backend www-backend
+    balance roundrobin
+    server 7249-web-01 18.171.162.201:80 check
+    server 7249-web-02 18.171.158.134:80 check
